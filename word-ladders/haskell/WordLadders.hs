@@ -22,9 +22,11 @@ makeLadder = undefined
 buildGraph :: WordSet -> String -> Node String
 buildGraph wordset head = Node head (map (buildGraph smaller) neighbours)
   where
-    neighbours = S.toList (S.filter (neighbour head) wordset)
+    neighbours = S.toList (S.filter (neighbour head) smaller)
     smaller = S.delete head wordset 
     
+-- TODO restrict to a maximum depth
+
 search :: Eq a => Node a -> a -> [a]
 search graph goal = search' graph goal []
 
