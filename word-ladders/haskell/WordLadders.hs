@@ -1,24 +1,22 @@
 module WordLadders where
 
 import qualified Data.Set as S
+import qualified Data.Map as M
 import Data.Char
-import Data.List (minimumBy)
-import Data.Ord (comparing)
+import Data.List (minimumBy,sortBy)
+import Data.Ord (comparing,compare,Ord)
 
--- |Each node carries details of the word
-data Node = Node String [Node] deriving Show
-
-type WordSet = S.Set String
- 
-data Dictionary = Dictionary WordSet
-
+type WordSet = S.Set String                                   
+data Node = Node String [Node]
 type DistanceMetric = String -> String -> Int
-                                   
+
+{- Cost Functions -}                      
+                      
 difference :: String -> String -> Int                     
 difference [] [] = 0
 difference (x:xs) (y:ys) | x == y = difference xs ys
-                         | otherwise = 1 + difference xs ys
-difference _ _ = error "Two strings must be the same length"
+                         | otherwise = 1 + difference xs ys                                       
+difference _ _ = 999999 -- Don't consider strings of inequal length
 
 -- Grabbed from http://www.haskell.org/haskellwiki/Edit_distance
 editDistance :: Eq a => [a] -> [a] -> Int
@@ -35,7 +33,7 @@ editDistance a b
 	  oneDiag a b diagAbove diagBelow = thisdiag
 	      where doDiag [] b nw n w = []
 		    doDiag a [] nw n w = []
-		    doDiag (ach:as) (bch:bs) nw n w = me : (doDiag as bs me (tail n) (tail w))
+		    doDiag (ach:as) (bch:bs) nw n w = me : doDiag as bs me (tail n) (tail w)
 			where me = if ach == bch then nw else 1 + min3 (head w) nw (head n)
 		    firstelt = 1 + head diagBelow
 		    thisdiag = firstelt : doDiag a b firstelt diagAbove (tail diagBelow)
@@ -46,11 +44,11 @@ editDistance a b
 neighbour :: DistanceMetric -> String -> String -> Bool
 neighbour dist x y = dist x y == 1
 
-makeLadder :: DistanceMetric -> Int-> String -> String -> IO [String]
-makeLadder d maxDepth start end = do    
+makeLadder :: DistanceMetric -> Int-> Int -> String -> String -> IO [String]
+makeLadder d maxDepth maxVariation start end = do    
       dict <- createDictionary
-      if (S.member start dict && S.member end dict)
-        then return $ search d (buildGraph d dict start) maxDepth end
+      if S.member start dict && S.member end dict
+        then return $ search d (buildGraph d dict start) maxDepth maxVariation end
         else return []
              
 wordListPath :: String
@@ -63,30 +61,38 @@ buildGraph distanceMetric wordset top = Node top (map (buildGraph distanceMetric
     smaller = S.delete top wordset 
     
 drawGraph :: Node -> [String]
-drawGraph (Node a children) = (map (\(Node child _) -> a ++ " -> " ++ child) children) ++  
-                              (concatMap drawGraph children)
-search :: DistanceMetric -> Node -> Int -> String -> [String]
-search distanceMetric graph maxDepth goal = search' distanceMetric graph maxDepth goal []
+drawGraph (Node a children) = map (\(Node child _) -> a ++ " -> " ++ child) children ++  
+                              concatMap drawGraph children
 
-search' :: DistanceMetric -> Node -> Int -> String -> [String] -> [String]
-search' dist (Node end children) maxDepth goal path 
-  | end == goal    = end : path 
-  | null children  = [] 
-  | length path >= maxDepth = [] -- too deep
-  | dist end goal >= maxDepth - length path = [] -- too much difference
-  | otherwise = first
-    where
-      childRoutes = filter (not . null) $ 
-                    map (\child -> search' dist child maxDepth goal (end : path)) children
-      first | null childRoutes = []
-            | otherwise        = head childRoutes                                    
-      quickest | null childRoutes = []
-               | otherwise = minimumBy (comparing length) childRoutes
+search :: DistanceMetric -> Node -> Int -> Int -> String -> [String]
+search dist graph maxDepth maxVariation goal = search' graph []
+  where 
+    search' (Node end children) path 
+      | end == goal    = end : path 
+      | null children  = [] 
+      | length path >= maxDepth = [] -- too deep
+      | dist end goal >= maxDepth - length path = [] -- too much difference
+      | dist end goal >= maxVariation = [] -- too far off in the wrong direction
+      | otherwise = first
+        where
+          -- Find the best node to search by comparing it against the goal
+          costForNextChild :: [(Int,Node)]
+          costForNextChild = zip (map (\(Node x _) -> dist x goal) children) children
+          bestFirst = map snd $ sortBy (comparing fst) costForNextChild
+      
+          -- Best first search
+          childRoutes = filter (not . null) $ map (\child -> search' child (end : path)) bestFirst
+      
+          first | null childRoutes = []
+                | otherwise        = head childRoutes                                    
+      
+          quickest | null childRoutes = []
+                   | otherwise = minimumBy (comparing length) childRoutes
                                             
     
 createDictionary :: IO WordSet    
 createDictionary = do
   file <- readFile wordListPath 
-  return $ S.fromList $ filter (\x -> all isAlpha x) (map (map toLower) $ words file)
+  return $ S.fromList $ filter (all isAlpha) (map (map toLower) $ words file)
 
 
