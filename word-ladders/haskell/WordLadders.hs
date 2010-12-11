@@ -27,30 +27,32 @@ buildGraph wordset head = Node head (map (buildGraph smaller) neighbours)
     
 -- TODO restrict to a maximum depth
 
-search :: Eq a => Node a -> a -> [a]
-search graph goal = search' graph goal []
+search :: Eq a =>  Node a -> Int -> a -> [a]
+search graph maxDepth goal = search' graph maxDepth goal []
 
-search' (Node end children) goal path | end == goal    = end : path -- finished
-                                      | null children  = [] -- no where left to goal
-                                      | otherwise = quickest
-                                        where
-                                          -- search all the children
-                                          childRoutes = map (\x -> search' x goal (end : path)) children
-                                          quickest = minimumBy (comparing length) childRoutes
+--search' :: Eq a => Node a -> Int -> a -> [a] -> [a]
+search' (Node end children) maxDepth goal path 
+  | end == goal    = end : path -- finished
+  | null children  = [] -- no where left to goal
+  | length path >= maxDepth = [] -- too deep
+  | otherwise = quickest
+    where
+      -- search all the children
+      childRoutes = filter (not . null) $ map (\child -> search' child maxDepth goal (end : path)) children
+      quickest | null childRoutes = []
+               | otherwise        = minimumBy (comparing length) (filter (not . null) childRoutes)
                                         
 
 
     
 -- Two strings are a neighbour if they differ by only a single character
 neighbour :: String -> String -> Bool
-neighbour x y = neighbour' x y 0 
-  where
-    neighbour' _ _ 2  = False
-    neighbour' [] [] c = c == 1
-    neighbour' (x:xs) (y:ys) c = neighbour' xs ys (c + d)
-      where
-        d | x == y = 0
-          | x /= y = 1
+neighbour x y = difference x y == 1
+                     
+difference :: String -> String -> Int                     
+difference [] [] = 0
+difference (x:xs) (y:ys) | x == y = difference xs ys
+                         | otherwise = 1 + difference xs ys
     
 createDictionary :: Int -> IO WordSet    
 createDictionary n = do
