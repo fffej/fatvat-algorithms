@@ -3,7 +3,7 @@ module WordLadders where
 import qualified Data.Set as S
 
 import Data.Char
-import Data.List (minimumBy,sortBy)
+import Data.List (minimumBy,sortBy,(\\),tails,inits)
 import Data.Ord (comparing,compare,Ord)
 
 type Word = String
@@ -11,13 +11,24 @@ type Word = String
 type WordSet = S.Set Word                                   
 data Node = Node Word [Node]
 type DistanceMetric = Word -> Word -> Int
+type Edits = Word -> WordSet
 
 {- Cost Functions -}                      
                       
+validChars :: [Char]
+validChars = "abcdefghijklmnopqrstuvwxyz"
+
 difference :: Word -> Word -> Int                     
 difference x y 
   | length x /= length y = 999999
   | otherwise = sum $ zipWith (\c1 c2 -> if c1 == c2 then 0 else 1) x y
+                
+                
+differentEdit :: Word -> WordSet
+differentEdit x = S.fromList $ concat $ zipWith (\x y -> map (\z -> x ++ z) (transposeChar y)) (inits x) (tails x)
+  where
+    transposeChar [] = []
+    transposeChar (x:xs) = map (\y -> y:xs) (validChars \\ [x])
 
 -- Grabbed from http://www.haskell.org/haskellwiki/Edit_distance
 editDistance :: Word -> Word -> Int
@@ -45,20 +56,21 @@ editDistance a b
 neighbour :: DistanceMetric -> Word -> Word -> Bool
 neighbour dist x y = dist x y == 1
 
-makeLadder :: DistanceMetric -> Int-> Int -> Word -> Word -> IO [Word]
-makeLadder d maxDepth maxVariation start end = do    
+makeLadder :: DistanceMetric -> Edits -> Int-> Int -> Word -> Word -> IO [Word]
+makeLadder d e maxDepth maxVariation start end = do    
       dict <- createDictionary
       if S.member start dict && S.member end dict
-        then return $ search d (buildGraph d dict end) maxDepth maxVariation start
+        then return $ search d (buildGraph d e dict end) maxDepth maxVariation start
         else return []
              
 wordListPath :: Word
 wordListPath = "/usr/share/dict/british-english"
 
-buildGraph :: DistanceMetric -> WordSet -> Word -> Node 
-buildGraph distanceMetric wordset top = Node top (map (buildGraph distanceMetric smaller) neighbours)
+buildGraph :: DistanceMetric -> Edits -> WordSet -> Word -> Node 
+buildGraph distanceMetric edits wordset top = Node top (map (buildGraph distanceMetric edits smaller) neighbours)
   where
-    neighbours = S.toList (S.filter (neighbour distanceMetric top) smaller)
+    possibleNeighbours = edits top
+    neighbours = S.toList (smaller `S.intersection` possibleNeighbours)
     smaller = S.delete top wordset 
     
 search :: DistanceMetric -> Node -> Int -> Int -> Word -> [Word]
