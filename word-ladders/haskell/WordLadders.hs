@@ -10,8 +10,11 @@ type Word = String
 
 type WordSet = S.Set Word                                   
 data Node = Node Word [Node]
-type DistanceMetric = Word -> Word -> Int
-type Edits = Word -> WordSet
+
+data DistanceMetric = DistanceMetric {
+  dist :: Word -> Word -> Int,
+  edits :: Word -> WordSet
+}
 
 {- Cost Functions -}                      
                       
@@ -24,11 +27,14 @@ difference x y
   | otherwise = sum $ zipWith (\c1 c2 -> if c1 == c2 then 0 else 1) x y
                 
                 
-differentEdit :: Word -> WordSet
-differentEdit x = S.fromList $ concat $ zipWith (\x y -> map (\z -> x ++ z) (transposeChar y)) (inits x) (tails x)
+differenceEdit :: Word -> WordSet
+differenceEdit x = S.fromList $ concat $ zipWith (\x y -> map (\z -> x ++ z) (transposeChar y)) (inits x) (tails x)
   where
     transposeChar [] = []
     transposeChar (x:xs) = map (\y -> y:xs) (validChars \\ [x])
+    
+simple :: DistanceMetric
+simple = DistanceMetric difference differenceEdit
 
 -- Grabbed from http://www.haskell.org/haskellwiki/Edit_distance
 editDistance :: Word -> Word -> Int
