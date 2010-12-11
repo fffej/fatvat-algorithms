@@ -7,7 +7,7 @@ import Data.List
 import Data.Ord (comparing)
 
 -- |Each node carries details of the word
-data Node a = Node a [Node a] deriving Show
+data Node = Node String [Node] deriving Show
 
 type WordSet = S.Set String
  
@@ -19,7 +19,7 @@ wordListPath = "/usr/share/dict/british-english"
 makeLadder :: Dictionary -> String -> String -> [String]
 makeLadder = undefined
 
-buildGraph :: WordSet -> String -> Node String
+buildGraph :: WordSet -> String -> Node 
 buildGraph wordset head = Node head (map (buildGraph smaller) neighbours)
   where
     neighbours = S.toList (S.filter (neighbour head) smaller)
@@ -27,14 +27,15 @@ buildGraph wordset head = Node head (map (buildGraph smaller) neighbours)
     
 -- TODO restrict to a maximum depth
 
-search :: Eq a =>  Node a -> Int -> a -> [a]
+search :: Node -> Int -> String -> [String]
 search graph maxDepth goal = search' graph maxDepth goal []
 
---search' :: Eq a => Node a -> Int -> a -> [a] -> [a]
+search' :: Node -> Int -> String -> [String] -> [String]
 search' (Node end children) maxDepth goal path 
   | end == goal    = end : path -- finished
   | null children  = [] -- no where left to goal
   | length path >= maxDepth = [] -- too deep
+  | (difference end goal) >= maxDepth - length path = [] -- too much difference
   | otherwise = quickest
     where
       -- search all the children
