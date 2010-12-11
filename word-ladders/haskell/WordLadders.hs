@@ -1,9 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
 module WordLadders where
 
 import qualified Data.Set as S
-import qualified Data.Map as M
-import qualified Data.Text as T
 
 import Data.Char
 import Data.List (minimumBy,sortBy)
