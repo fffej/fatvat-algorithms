@@ -3,9 +3,6 @@ module WordLadders where
 
 import qualified Data.Set as S
 import qualified Data.Map as M
-import qualified Data.Trie as T
-
-import qualified Data.ByteString.Char8 as B
 
 import Data.Char
 import Data.List (minimumBy,sortBy)
@@ -20,10 +17,9 @@ type DistanceMetric = Word -> Word -> Int
 {- Cost Functions -}                      
                       
 difference :: Word -> Word -> Int                     
-difference [] [] = 0
-difference (x:xs) (y:ys) | x == y = difference xs ys
-                         | otherwise = 1 + difference xs ys                                       
-difference _ _ = 999999 -- Don't consider strings of inequal length
+difference x y 
+  | length x /= length y = 999999
+  | otherwise = sum $ zipWith (\c1 c2 -> if c1 == c2 then 0 else 1) x y
 
 -- Grabbed from http://www.haskell.org/haskellwiki/Edit_distance
 editDistance :: Eq a => [a] -> [a] -> Int
@@ -67,10 +63,6 @@ buildGraph distanceMetric wordset top = Node top (map (buildGraph distanceMetric
     neighbours = S.toList (S.filter (neighbour distanceMetric top) smaller)
     smaller = S.delete top wordset 
     
-drawGraph :: Node -> [Word]
-drawGraph (Node a children) = map (\(Node child _) -> a ++ " -> " ++ child) children ++  
-                              concatMap drawGraph children
-
 search :: DistanceMetric -> Node -> Int -> Int -> Word -> [Word]
 search dist graph maxDepth maxVariation goal = search' graph []
   where 
