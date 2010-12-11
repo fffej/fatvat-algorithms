@@ -3,6 +3,7 @@ module WordLadders where
 
 import qualified Data.Set as S
 import qualified Data.Map as M
+import qualified Data.Text as T
 
 import Data.Char
 import Data.List (minimumBy,sortBy)
@@ -22,12 +23,13 @@ difference x y
   | otherwise = sum $ zipWith (\c1 c2 -> if c1 == c2 then 0 else 1) x y
 
 -- Grabbed from http://www.haskell.org/haskellwiki/Edit_distance
-editDistance :: Eq a => [a] -> [a] -> Int
+editDistance :: Word -> Word -> Int
 editDistance a b 
     = last (if lab == 0 then mainDiag
 	    else if lab > 0 then lowers !! (lab - 1)
 		 else{- < 0 -}   uppers !! (-1 - lab))
-    where mainDiag = oneDiag a b (head uppers) (-1 : head lowers)
+    where 
+          mainDiag = oneDiag a b (head uppers) (-1 : head lowers)
 	  uppers = eachDiag a b (mainDiag : uppers) -- upper diagonals
 	  lowers = eachDiag b a (mainDiag : lowers) -- lower diagonals
 	  eachDiag a [] diags = []
@@ -43,7 +45,6 @@ editDistance a b
 	  lab = length a - length b
           min3 x y z = if x < y then x else min y z
 
--- Two strings are a neighbour if they differ by only a single character
 neighbour :: DistanceMetric -> Word -> Word -> Bool
 neighbour dist x y = dist x y == 1
 
