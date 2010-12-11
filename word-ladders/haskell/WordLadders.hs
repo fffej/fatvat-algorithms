@@ -33,7 +33,7 @@ search graph maxDepth goal = search' graph maxDepth goal []
 search' :: Node -> Int -> String -> [String] -> [String]
 search' (Node end children) maxDepth goal path 
   | end == goal    = end : path -- finished
-  | null children  = [] -- no where left to go
+  | null children  = [] -- no where left to goal
   | length path >= maxDepth = [] -- too deep
   | (difference end goal) >= maxDepth - length path = [] -- too much difference
   | otherwise = quickest
@@ -41,7 +41,7 @@ search' (Node end children) maxDepth goal path
       -- search all the children
       childRoutes = filter (not . null) $ map (\child -> search' child maxDepth goal (end : path)) children
       quickest | null childRoutes = []
-               | otherwise        = minimumBy (comparing length) (filter (not . null) childRoutes)
+               | otherwise        = head childRoutes                                    
                                             
 -- Two strings are a neighbour if they differ by only a single character
 neighbour :: String -> String -> Bool
