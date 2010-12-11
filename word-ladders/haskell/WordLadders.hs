@@ -5,7 +5,7 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 import qualified Data.Trie as T
 
-import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as B
 
 import Data.Char
 import Data.List (minimumBy,sortBy)
