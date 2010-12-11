@@ -51,7 +51,7 @@ makeLadder :: DistanceMetric -> Int-> Int -> Word -> Word -> IO [Word]
 makeLadder d maxDepth maxVariation start end = do    
       dict <- createDictionary
       if S.member start dict && S.member end dict
-        then return $ search d (buildGraph d dict start) maxDepth maxVariation end
+        then return $ search d (buildGraph d dict end) maxDepth maxVariation start
         else return []
              
 wordListPath :: Word
