@@ -1,18 +1,25 @@
+{-# LANGUAGE OverloadedStrings #-}
 module WordLadders where
 
 import qualified Data.Set as S
 import qualified Data.Map as M
+import qualified Data.Trie as T
+
+import qualified Data.ByteString as B
+
 import Data.Char
 import Data.List (minimumBy,sortBy)
 import Data.Ord (comparing,compare,Ord)
 
-type WordSet = S.Set String                                   
-data Node = Node String [Node]
-type DistanceMetric = String -> String -> Int
+type Word = String
+
+type WordSet = S.Set Word                                   
+data Node = Node Word [Node]
+type DistanceMetric = Word -> Word -> Int
 
 {- Cost Functions -}                      
                       
-difference :: String -> String -> Int                     
+difference :: Word -> Word -> Int                     
 difference [] [] = 0
 difference (x:xs) (y:ys) | x == y = difference xs ys
                          | otherwise = 1 + difference xs ys                                       
@@ -41,35 +48,34 @@ editDistance a b
           min3 x y z = if x < y then x else min y z
 
 -- Two strings are a neighbour if they differ by only a single character
-neighbour :: DistanceMetric -> String -> String -> Bool
+neighbour :: DistanceMetric -> Word -> Word -> Bool
 neighbour dist x y = dist x y == 1
 
-makeLadder :: DistanceMetric -> Int-> Int -> String -> String -> IO [String]
+makeLadder :: DistanceMetric -> Int-> Int -> Word -> Word -> IO [Word]
 makeLadder d maxDepth maxVariation start end = do    
       dict <- createDictionary
       if S.member start dict && S.member end dict
         then return $ search d (buildGraph d dict start) maxDepth maxVariation end
         else return []
              
-wordListPath :: String
+wordListPath :: Word
 wordListPath = "/usr/share/dict/british-english"
 
-buildGraph :: DistanceMetric -> WordSet -> String -> Node 
+buildGraph :: DistanceMetric -> WordSet -> Word -> Node 
 buildGraph distanceMetric wordset top = Node top (map (buildGraph distanceMetric smaller) neighbours)
   where
     neighbours = S.toList (S.filter (neighbour distanceMetric top) smaller)
     smaller = S.delete top wordset 
     
-drawGraph :: Node -> [String]
+drawGraph :: Node -> [Word]
 drawGraph (Node a children) = map (\(Node child _) -> a ++ " -> " ++ child) children ++  
                               concatMap drawGraph children
 
-search :: DistanceMetric -> Node -> Int -> Int -> String -> [String]
+search :: DistanceMetric -> Node -> Int -> Int -> Word -> [Word]
 search dist graph maxDepth maxVariation goal = search' graph []
   where 
     search' (Node end children) path 
       | end == goal    = end : path 
-      | null children  = [] 
       | length path >= maxDepth = [] -- too deep
       | dist end goal >= maxDepth - length path = [] -- too much difference
       | dist end goal >= maxVariation = [] -- too far off in the wrong direction
