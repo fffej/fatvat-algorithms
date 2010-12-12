@@ -36,6 +36,12 @@ differenceEdit x = S.fromList $ concat $ zipWith (\x y -> map (\z -> x ++ z) (tr
 simple :: DistanceMetric
 simple = DistanceMetric difference differenceEdit
 
+--editDistanceEdits :: Word -> WordSet
+diffEdts x = concat $ zipWith (\x y -> map (\z -> x ++ z) (deleteChar y)) (inits x) (tails x)
+  where
+    deleteChar [] = []
+    deleteChar (x:xs) = [xs]
+
 -- Grabbed from http://www.haskell.org/haskellwiki/Edit_distance
 editDistance :: Word -> Word -> Int
 editDistance a b 
@@ -60,27 +66,27 @@ editDistance a b
           min3 x y z = if x < y then x else min y z
 
 neighbour :: DistanceMetric -> Word -> Word -> Bool
-neighbour dist x y = dist x y == 1
+neighbour (DistanceMetric d _) x y = d x y == 1
 
-makeLadder :: DistanceMetric -> Edits -> Int-> Int -> Word -> Word -> IO [Word]
-makeLadder d e maxDepth maxVariation start end = do    
+makeLadder :: DistanceMetric -> Int-> Int -> Word -> Word -> IO [Word]
+makeLadder d maxDepth maxVariation start end = do    
       dict <- createDictionary
       if S.member start dict && S.member end dict
-        then return $ search d (buildGraph d e dict end) maxDepth maxVariation start
+        then return $ search d (buildGraph d dict end) maxDepth maxVariation start
         else return []
              
 wordListPath :: Word
 wordListPath = "/usr/share/dict/british-english"
 
-buildGraph :: DistanceMetric -> Edits -> WordSet -> Word -> Node 
-buildGraph distanceMetric edits wordset top = Node top (map (buildGraph distanceMetric edits smaller) neighbours)
+buildGraph :: DistanceMetric -> WordSet -> Word -> Node 
+buildGraph d@(DistanceMetric dist edits) wordset top = Node top (map (buildGraph d smaller) neighbours)
   where
     possibleNeighbours = edits top
     neighbours = S.toList (smaller `S.intersection` possibleNeighbours)
     smaller = S.delete top wordset 
     
 search :: DistanceMetric -> Node -> Int -> Int -> Word -> [Word]
-search dist graph maxDepth maxVariation goal = search' graph []
+search (DistanceMetric dist _) graph maxDepth maxVariation goal = search' graph []
   where 
     search' (Node end children) path 
       | end == goal    = end : path 
