@@ -3,20 +3,15 @@ module WordLadders where
 import qualified Data.Set as S
 
 import Data.Char
-import Data.List (minimumBy,sortBy,(\\),tails,inits)
-import Data.Ord (comparing,compare,Ord)
+import Data.List (sortBy,(\\),tails,inits)
+import Data.Ord (comparing,Ord)
 
 type Word = String
 
 type WordSet = S.Set Word                                   
 data Node = Node Word [Node]
 
-data DistanceMetric = DistanceMetric {
-  dist :: Word -> Word -> Int,
-  edits :: Word -> WordSet
-}
-
-{- Cost Functions -}                      
+data DistanceMetric = DistanceMetric (Word -> Word -> Int) (Word -> WordSet)
                       
 validChars :: [Char]
 validChars = "abcdefghijklmnopqrstuvwxyz"
@@ -26,21 +21,32 @@ difference x y
   | length x /= length y = 999999
   | otherwise = sum $ zipWith (\c1 c2 -> if c1 == c2 then 0 else 1) x y
                 
+transposeChar :: Word -> [Word] 
+transposeChar [] = []
+transposeChar (x:xs) = map (:xs) (validChars \\ [x])
                 
+deleteChar :: Word -> [Word]                       
+deleteChar [] = []
+deleteChar (x:xs) = [xs]
+
+insertChar :: Word -> [Word]
+insertChar [] = []
+insertChar (x:xs) = map (\y -> y:x:xs) validChars
+
 differenceEdit :: Word -> WordSet
-differenceEdit x = S.fromList $ concat $ zipWith (\x y -> map (\z -> x ++ z) (transposeChar y)) (inits x) (tails x)
-  where
-    transposeChar [] = []
-    transposeChar (x:xs) = map (\y -> y:xs) (validChars \\ [x])
+differenceEdit x = edit' x [transposeChar]
     
 simple :: DistanceMetric
 simple = DistanceMetric difference differenceEdit
 
---editDistanceEdits :: Word -> WordSet
-diffEdts x = concat $ zipWith (\x y -> map (\z -> x ++ z) (deleteChar y)) (inits x) (tails x)
-  where
-    deleteChar [] = []
-    deleteChar (x:xs) = [xs]
+edits :: DistanceMetric
+edits = DistanceMetric editDistance editDistanceEdits
+
+editDistanceEdits :: Word -> WordSet
+editDistanceEdits x = edit' x [insertChar,transposeChar,deleteChar]
+
+edit' :: Word -> [Word -> [Word]] -> WordSet
+edit' w fns = S.fromList $ concat $ zipWith (\x y -> map (\z -> x ++ z) (concatMap (\x -> x y) fns)) (inits w) (tails w)
 
 -- Grabbed from http://www.haskell.org/haskellwiki/Edit_distance
 editDistance :: Word -> Word -> Int
@@ -68,11 +74,11 @@ editDistance a b
 neighbour :: DistanceMetric -> Word -> Word -> Bool
 neighbour (DistanceMetric d _) x y = d x y == 1
 
-makeLadder :: DistanceMetric -> Int-> Int -> Word -> Word -> IO [Word]
-makeLadder d maxDepth maxVariation start end = do    
+makeLadder :: DistanceMetric -> Int -> Word -> Word -> IO [Word]
+makeLadder d maxDepth start end = do    
       dict <- createDictionary
       if S.member start dict && S.member end dict
-        then return $ search d (buildGraph d dict end) maxDepth maxVariation start
+        then return $ search d (buildGraph d dict end) maxDepth start
         else return []
              
 wordListPath :: Word
@@ -85,14 +91,13 @@ buildGraph d@(DistanceMetric dist edits) wordset top = Node top (map (buildGraph
     neighbours = S.toList (smaller `S.intersection` possibleNeighbours)
     smaller = S.delete top wordset 
     
-search :: DistanceMetric -> Node -> Int -> Int -> Word -> [Word]
-search (DistanceMetric dist _) graph maxDepth maxVariation goal = search' graph []
+search :: DistanceMetric -> Node -> Int -> Word -> [Word]
+search (DistanceMetric dist _) graph maxDepth goal = search' graph []
   where 
     search' (Node end children) path 
       | end == goal    = end : path 
       | length path >= maxDepth = [] -- too deep
       | dist end goal >= maxDepth - length path = [] -- too much difference
-      | dist end goal >= maxVariation = [] -- too far off in the wrong direction
       | otherwise = first
         where
           -- Find the best node to search by comparing it against the goal
@@ -105,10 +110,7 @@ search (DistanceMetric dist _) graph maxDepth maxVariation goal = search' graph 
       
           first | null childRoutes = []
                 | otherwise        = head childRoutes                                    
-      
-          quickest | null childRoutes = []
-                   | otherwise = minimumBy (comparing length) childRoutes
-                                            
+                                                  
     
 createDictionary :: IO WordSet    
 createDictionary = do
